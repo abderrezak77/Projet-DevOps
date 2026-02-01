@@ -1,0 +1,75 @@
+# Pod Security Standards - Namespace level
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: encheres-secure
+  labels:
+    # Appliquer les standards de sécurité "restricted"
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# Exemple de Deployment sécurisé pour le backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: encheres-royale-back-secure
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: encheres-royale-back
+  template:
+    metadata:
+      labels:
+        app: encheres-royale-back
+    spec:
+      serviceAccountName: backend-service-account
+      # Security Context au niveau du pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: back
+          image: abderrezak77/encheres-royale-back:latest
+          ports:
+            - containerPort: 3001
+          # Security Context au niveau du container
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # Node.js a besoin d'écrire
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          env:
+            - name: PORT
+              value: "3001"
+            - name: DB_HOST
+              value: "postgres-service"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: database
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
